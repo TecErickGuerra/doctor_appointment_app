@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'firebase_options.dart'; // generado por FlutterFire CLI
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +17,19 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login de prueba',
+      debugShowCheckedModeBanner: false,
+      title: 'Citas Médicas',
+      theme: ThemeData(
+        colorScheme: ColorScheme.light(
+          primary: const Color(0xFF00BFA6),
+          secondary: const Color(0xFF00796B),
+          background: const Color(0xFFF1F8F6),
+        ),
+        useMaterial3: true,
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(fontFamily: 'Poppins'),
+        ),
+      ),
       home: const LoginPage(),
     );
   }
@@ -36,175 +48,186 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  bool _isLoading = false; // Para mostrar carga mientras se autentica
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
+  bool _isLoading = false;
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
-      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      final user = await _auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Bienvenido ${userCredential.user!.email}")),
+        SnackBar(content: Text('Bienvenido ${user.user!.email}')),
       );
     } on FirebaseAuthException catch (e) {
-      String message;
-      if (e.code == 'user-not-found') {
-        message = "Usuario no encontrado";
-      } else if (e.code == 'wrong-password') {
-        message = "Contraseña incorrecta";
-      } else {
-        message = e.message ?? "Error desconocido";
-      }
-
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      String msg = switch (e.code) {
+        'user-not-found' => 'Usuario no encontrado',
+        'wrong-password' => 'Contraseña incorrecta',
+        _ => e.message ?? 'Error desconocido',
+      };
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _logout() async {
-    await _auth.signOut();
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Sesión cerrada")),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Login Demo")),
+      backgroundColor: const Color(0xFFF1F8F6),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Correo
-              TextFormField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: "Correo electrónico",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) =>
-                    (value == null || value.isEmpty) ? "Por favor ingresa tu correo" : null,
+              // LOGO
+              Image.asset(
+                'assets/images/cita_logo.png',
+                height: 120,
               ),
-              const SizedBox(height: 16),
-
-              // Contraseña
-              TextFormField(
-                controller: passwordController,
-                decoration: const InputDecoration(
-                  labelText: "Contraseña",
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                validator: (value) =>
-                    (value == null || value.isEmpty) ? "Por favor ingresa tu contraseña" : null,
-              ),
-              const SizedBox(height: 24),
-
-              // Botón Login
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _login,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        )
-                      : const Text("Iniciar sesión"),
+              const SizedBox(height: 20),
+              const Text(
+                "Bienvenido a Citas Médicas",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF00796B),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
+              const Text(
+                "Inicia sesión para continuar",
+                style: TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 40),
 
-              // Botón Logout
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _logout,
-                  child: const Text("Cerrar sesión"),
+              Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // Campo de correo
+                    TextFormField(
+                      controller: emailController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.email),
+                        labelText: 'Correo electrónico',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      validator: (value) =>
+                          value!.isEmpty ? 'Ingrese su correo' : null,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Campo de contraseña
+                    TextFormField(
+                      controller: passwordController,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.lock),
+                        labelText: 'Contraseña',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      obscureText: true,
+                      validator: (value) =>
+                          value!.isEmpty ? 'Ingrese su contraseña' : null,
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Botón login
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00BFA6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : const Text(
+                                'Iniciar sesión',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 16),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Enlace de registro
+                    TextButton(
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          try {
+                            UserCredential userCredential = await FirebaseAuth.instance
+                                .createUserWithEmailAndPassword(
+                              email: emailController.text.trim(),
+                              password: passwordController.text.trim(),
+                            );
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Cuenta creada: ${userCredential.user!.email}")),
+                            );
+                          } on FirebaseAuthException catch (e) {
+                            String message = "";
+                            if (e.code == 'email-already-in-use') {
+                              message = "El correo ya está en uso";
+                            } else if (e.code == 'weak-password') {
+                              message = "Contraseña demasiado débil";
+                            } else {
+                              message = e.message ?? "Error desconocido";
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(message)),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text("¿No tienes cuenta? Regístrate aquí"),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Enlace de recuperación
+                    TextButton(
+                      onPressed: () async {
+                        if (emailController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Ingresa tu correo para restablecer la contraseña")),
+                          );
+                          return;
+                        }
+
+                        try {
+                          await FirebaseAuth.instance.sendPasswordResetEmail(
+                            email: emailController.text.trim(),
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Se ha enviado un correo para restablecer la contraseña")),
+                          );
+                        } on FirebaseAuthException catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.message ?? "Error desconocido")),
+                          );
+                        }
+                      },
+                      child: const Text("¿Olvidaste tu contraseña?"),
+                    ),
+                  ],
                 ),
-              ),
-
-              // Botón de "Olvidó su contraseña"
-              TextButton(
-                onPressed: () async {
-                  if (emailController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Ingresa su correo para restablecer la contraseña")),
-                    );
-                    return;
-                  }
-
-                  try {
-                    await FirebaseAuth.instance.sendPasswordResetEmail(
-                      email: emailController.text.trim(),
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Se ha enviado un correo para restablecer su contraseña")),
-                    );
-                  } on FirebaseAuthException catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(e.message ?? "Error desconocido")),
-                    );
-                  }
-                },
-                child: const Text("Olvidó su contraseña?"),
-              ),
-
-              // Boton de crear nueva cuenta
-              TextButton(
-                onPressed: () async {
-                  if (_formKey.currentState!.validate()) {
-                    try {
-                      UserCredential userCredential = await FirebaseAuth.instance
-                          .createUserWithEmailAndPassword(
-                        email: emailController.text.trim(),
-                        password: passwordController.text.trim(),
-                      );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Cuenta creada: ${userCredential.user!.email}")),
-                      );
-                    } on FirebaseAuthException catch (e) {
-                      String message = "";
-                      if (e.code == 'email-already-in-use') {
-                        message = "El correo ya está en uso";
-                      } else if (e.code == 'weak-password') {
-                        message = "Contraseña demasiado débil";
-                      } else {
-                        message = e.message ?? "Error desconocido";
-                      }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(message)),
-                      );
-                    }
-                  }
-                },
-                child: const Text("Crear una nueva cuenta"),
               ),
             ],
           ),
