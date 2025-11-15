@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';  // 👈 AGREGAR
 import '../routes.dart';
 import '../settings/privacy_screen.dart';
 import '../settings/about_screen.dart';
@@ -36,6 +37,23 @@ class _HomePageState extends State<HomePage> {
       return user.email!.split('@')[0];
     }
     return "Usuario";
+  }
+
+  // 👇 NUEVA FUNCIÓN: Obtener rol del usuario
+  Future<String?> _getUserRole() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      return doc.data()?['rol'] ?? 'Paciente';
+    } catch (e) {
+      print('Error al obtener rol: $e');
+      return 'Paciente';
+    }
   }
 
   @override
@@ -118,60 +136,101 @@ class _HomePageState extends State<HomePage> {
 
             const SizedBox(height: 24),
 
-            // Tarjetas principales
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMainCard(
-                    title: 'Agendar Cita',
-                    icon: Icons.calendar_today,
-                    color: Colors.green,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const AppointmentsPage()),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildMainCard(
-                    title: 'Dashboard',
-                    icon: Icons.dashboard,
-                    color: const Color(0xFF6c5ce7),
-                    onTap: () {
-                      setState(() => _selectedIndex = 1);
-                    },
-                  ),
-                ),
-              ],
-            ),
+            // 👇 TARJETAS CONDICIONALES SEGÚN EL ROL
+            FutureBuilder<String?>(
+              future: _getUserRole(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            const SizedBox(height: 16),
+                final rol = snapshot.data ?? 'Paciente';
 
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMainCard(
-                    title: 'Consejos',
-                    icon: Icons.lightbulb,
-                    color: Colors.orange,
-                    onTap: () => _showMedicalTips(context),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildMainCard(
-                    title: 'Mensajes',
-                    icon: Icons.message,
-                    color: Colors.blue,
-                    onTap: () {
-                      setState(() => _selectedIndex = 2);
-                    },
-                  ),
-                ),
-              ],
+                return Column(
+                  children: [
+                    // Primera fila de tarjetas - CONDICIONAL
+                    Row(
+                      children: [
+                        if (rol == 'Paciente') ...[
+                          // PACIENTE ve: Agendar Cita
+                          Expanded(
+                            child: _buildMainCard(
+                              title: 'Agendar Cita',
+                              icon: Icons.event_available,
+                              color: Colors.green,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const AppointmentsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ] else ...[
+                          // MÉDICO ve: Ver Dashboard
+                          Expanded(
+                            child: _buildMainCard(
+                              title: 'Ver Dashboard',
+                              icon: Icons.dashboard,
+                              color: const Color(0xFF00A8A8),
+                              onTap: () {
+                                Navigator.pushNamed(context, Routes.dashboard);
+                              },
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildMainCard(
+                            title: 'Mensajes',
+                            icon: Icons.message,
+                            color: Colors.blue,
+                            onTap: () {
+                              setState(() => _selectedIndex = 2);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Segunda fila de tarjetas
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMainCard(
+                            title: 'Consejos',
+                            icon: Icons.lightbulb,
+                            color: Colors.orange,
+                            onTap: () => _showMedicalTips(context),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildMainCard(
+                            title: rol == 'Médico' ? 'Mis Citas' : 'Mis Doctores',
+                            icon: rol == 'Médico' ? Icons.calendar_today : Icons.people,
+                            color: rol == 'Médico' ? const Color(0xFF6c5ce7) : Colors.teal,
+                            onTap: () {
+                              if (rol == 'Médico') {
+                                setState(() => _selectedIndex = 1);
+                              } else {
+                                // Navegar a lista de doctores
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Ver lista de doctores')),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 24),

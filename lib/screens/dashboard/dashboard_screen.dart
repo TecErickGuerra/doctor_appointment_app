@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../widgets/dashboard/task_card_widget.dart';
 import '../../widgets/dashboard/project_card_widget.dart';
 
@@ -19,26 +21,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             _buildHeader(context),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildStatsCards(context),
-                    const SizedBox(height: 24),
-                    _buildAppointmentsSection(context),
-                    const SizedBox(height: 24),
-                    _buildDepartmentsSection(context),
-                    const SizedBox(height: 24),
-                    _buildQuickActions(context),
-                  ],
-                ),
+              // 👇 STREAMBUILDER PARA DATOS EN TIEMPO REAL
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('citas')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Error: ${snapshot.error}'),
+                    );
+                  }
+
+                  // 📊 CÁLCULO DE ESTADÍSTICAS DINÁMICAS
+                  final citas = snapshot.data?.docs ?? [];
+                  final totalCitas = citas.length;
+                  final citasHoy = _getCitasHoy(citas);
+                  final citasPendientes = citas
+                      .where((c) => (c.data() as Map)['estado'] == 'Pendiente')
+                      .length;
+                  final citasCompletadas = citas
+                      .where((c) => (c.data() as Map)['estado'] == 'Completada')
+                      .length;
+
+                  // 📊 PACIENTES ÚNICOS
+                  final pacientesUnicos = <String>{};
+                  for (var cita in citas) {
+                    final data = cita.data() as Map;
+                    if (data['pacienteId'] != null) {
+                      pacientesUnicos.add(data['pacienteId']);
+                    }
+                  }
+                  final totalPacientes = pacientesUnicos.length;
+
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildStatsCards(
+                          context,
+                          citasHoy: citasHoy,
+                          totalPacientes: totalPacientes,
+                          totalCitas: totalCitas,
+                          citasCompletadas: citasCompletadas,
+                        ),
+                        const SizedBox(height: 24),
+                        _buildAppointmentsSection(context, citas),
+                        const SizedBox(height: 24),
+                        _buildDepartmentsSection(context),
+                        const SizedBox(height: 24),
+                        _buildQuickActions(context),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // 📅 FUNCIÓN: Obtener citas de hoy
+  int _getCitasHoy(List<QueryDocumentSnapshot> citas) {
+    final hoy = DateTime.now();
+    final hoyStr = '${hoy.year}-${hoy.month.toString().padLeft(2, '0')}-${hoy.day.toString().padLeft(2, '0')}';
+    
+    return citas.where((c) {
+      final data = c.data() as Map;
+      return data['fecha'] == hoyStr;
+    }).length;
   }
 
   // ==================== HEADER ====================
@@ -85,9 +145,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onPressed: () {},
               ),
               const SizedBox(width: 8),
-              const CircleAvatar(
-                radius: 20,
-                backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=1'),
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.pushReplacementNamed(context, '/');
+                  }
+                },
               ),
             ],
           ),
@@ -106,8 +171,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year}';
   }
 
-  // ==================== STATS CARDS ====================
-  Widget _buildStatsCards(BuildContext context) {
+  // ==================== STATS CARDS (DINÁMICAS) ====================
+  Widget _buildStatsCards(
+    BuildContext context, {
+    required int citasHoy,
+    required int totalPacientes,
+    required int totalCitas,
+    required int citasCompletadas,
+  }) {
     return GridView.count(
       crossAxisCount: MediaQuery.of(context).size.width > 768 ? 4 : 2,
       shrinkWrap: true,
@@ -116,33 +187,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
       mainAxisSpacing: 16,
       childAspectRatio: 1.5,
       children: [
+        // 1️⃣ INDICADOR: Total de Citas
         _buildStatCard(
-          title: 'Citas Hoy',
-          value: '15',
-          icon: Icons.calendar_today,
+          title: 'Total Citas',
+          value: totalCitas.toString(),
+          icon: Icons.calendar_month,
           color: const Color(0xFF6c5ce7),
-          trend: '+12%',
+          trend: '+${totalCitas}',
         ),
+        // 2️⃣ INDICADOR: Total de Pacientes
         _buildStatCard(
           title: 'Pacientes',
-          value: '234',
+          value: totalPacientes.toString(),
           icon: Icons.people,
           color: const Color(0xFF00D4FF),
-          trend: '+8%',
+          trend: '+${totalPacientes}',
         ),
+        // 3️⃣ INDICADOR: Citas Pendientes
         _buildStatCard(
-          title: 'Consultas',
-          value: '89',
-          icon: Icons.medical_services,
-          color: const Color(0xFFFF6B6B),
-          trend: '+15%',
-        ),
-        _buildStatCard(
-          title: 'Ingresos',
-          value: '\$12.5k',
-          icon: Icons.attach_money,
+          title: 'Completadas',
+          value: citasCompletadas.toString(),
+          icon: Icons.check_circle,
           color: const Color(0xFF4ECB71),
-          trend: '+20%',
+          trend: '+${citasCompletadas}',
+        ),
+        // 4️⃣ INDICADOR EXTRA: Citas de Hoy
+        _buildStatCard(
+          title: 'Citas Hoy',
+          value: citasHoy.toString(),
+          icon: Icons.today,
+          color: const Color(0xFFFF6B6B),
+          trend: 'Hoy',
         ),
       ],
     );
@@ -225,8 +300,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ==================== APPOINTMENTS SECTION ====================
-  Widget _buildAppointmentsSection(BuildContext context) {
+  // ==================== APPOINTMENTS SECTION (DINÁMICA) ====================
+  Widget _buildAppointmentsSection(
+    BuildContext context,
+    List<QueryDocumentSnapshot> citas,
+  ) {
+    final citasRecientes = citas.take(3).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -234,7 +314,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Citas de Hoy',
+              'Citas Recientes',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -248,29 +328,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         const SizedBox(height: 16),
-        TaskCardWidget(
-          title: 'Dr. Smith - Consulta',
-          subtitle: '10:00 AM',
-          status: 'Pendiente',
-          statusColor: Colors.orange,
-          patient: 'Juan Pérez',
-        ),
-        const SizedBox(height: 12),
-        TaskCardWidget(
-          title: 'Dr. Johnson - Seguimiento',
-          subtitle: '11:30 AM',
-          status: 'En Progreso',
-          statusColor: Colors.blue,
-          patient: 'María García',
-        ),
-        const SizedBox(height: 12),
-        TaskCardWidget(
-          title: 'Dr. Williams - Control',
-          subtitle: '2:00 PM',
-          status: 'Completado',
-          statusColor: Colors.green,
-          patient: 'Carlos López',
-        ),
+        if (citasRecientes.isEmpty)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Text('No hay citas registradas'),
+            ),
+          )
+        else
+          ...citasRecientes.map((cita) {
+            final data = cita.data() as Map<String, dynamic>;
+            final estado = data['estado'] ?? 'Pendiente';
+            Color statusColor;
+
+            switch (estado) {
+              case 'Completada':
+                statusColor = Colors.green;
+                break;
+              case 'Cancelada':
+                statusColor = Colors.red;
+                break;
+              default:
+                statusColor = Colors.orange;
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TaskCardWidget(
+                title: data['motivo'] ?? 'Consulta',
+                subtitle: '${data['fecha']} - ${data['hora']}',
+                status: estado,
+                statusColor: statusColor,
+                patient: data['paciente'] ?? 'Sin nombre',
+              ),
+            );
+          }).toList(),
       ],
     );
   }
@@ -328,52 +420,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ==================== QUICK ACTIONS ====================
-  Widget _buildQuickActions(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Acciones Rápidas',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1a1d2e),
+Widget _buildQuickActions(BuildContext context) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Acciones Rápidas',
+        style: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1a1d2e),
+        ),
+      ),
+      const SizedBox(height: 16),
+      Row(
+        children: [
+          Expanded(
+            child: _buildQuickActionButton(
+              icon: Icons.add_circle,
+              label: 'Nueva Cita',
+              color: const Color(0xFF6c5ce7),
+              onTap: () {
+                _showNuevaCitaDialog(context);  // 👈 NUEVA FUNCIONALIDAD
+              },
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _buildQuickActionButton(
-                icon: Icons.add_circle,
-                label: 'Nueva Cita',
-                color: const Color(0xFF6c5ce7),
-                onTap: () {},
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildQuickActionButton(
+              icon: Icons.person_add,
+              label: 'Nuevo Paciente',
+              color: const Color(0xFF00D4FF),
+              onTap: () {
+                _showNuevoPacienteDialog(context);  // 👈 NUEVA FUNCIONALIDAD
+              },
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionButton(
-                icon: Icons.person_add,
-                label: 'Nuevo Paciente',
-                color: const Color(0xFF00D4FF),
-                onTap: () {},
-              ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildQuickActionButton(
+              icon: Icons.receipt_long,
+              label: 'Ver Reportes',
+              color: const Color(0xFF4ECB71),
+              onTap: () {
+                _showReportesDialog(context);  // 👈 NUEVA FUNCIONALIDAD
+              },
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildQuickActionButton(
-                icon: Icons.receipt_long,
-                label: 'Ver Reportes',
-                color: const Color(0xFF4ECB71),
-                onTap: () {},
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+          ),
+        ],
+      ),
+    ],
+  );
+}
 
   Widget _buildQuickActionButton({
     required IconData icon,
@@ -415,4 +513,290 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
   }
+}
+
+// ==================== DIÁLOGOS Y FUNCIONES ====================
+
+// 📅 NUEVA CITA
+void _showNuevaCitaDialog(BuildContext context) {
+  final TextEditingController pacienteController = TextEditingController();
+  final TextEditingController motivoController = TextEditingController();
+  final TextEditingController fechaController = TextEditingController();
+  final TextEditingController horaController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Nueva Cita'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: pacienteController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre del Paciente',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motivoController,
+              decoration: const InputDecoration(
+                labelText: 'Motivo de la Cita',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: fechaController,
+              decoration: const InputDecoration(
+                labelText: 'Fecha (YYYY-MM-DD)',
+                border: OutlineInputBorder(),
+                hintText: '2025-11-20',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: horaController,
+              decoration: const InputDecoration(
+                labelText: 'Hora',
+                border: OutlineInputBorder(),
+                hintText: '10:00 AM',
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            if (pacienteController.text.isNotEmpty &&
+                motivoController.text.isNotEmpty &&
+                fechaController.text.isNotEmpty &&
+                horaController.text.isNotEmpty) {
+              try {
+                // Guardar en Firebase
+                await FirebaseFirestore.instance.collection('citas').add({
+                  'paciente': pacienteController.text,
+                  'pacienteId': 'auto_${DateTime.now().millisecondsSinceEpoch}',
+                  'motivo': motivoController.text,
+                  'fecha': fechaController.text,
+                  'hora': horaController.text,
+                  'estado': 'Pendiente',
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cita creada exitosamente'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Por favor completa todos los campos'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
+    ),
+  );
+}
+
+// 👤 NUEVO PACIENTE
+void _showNuevoPacienteDialog(BuildContext context) {
+  final TextEditingController nombreController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController telefonoController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Nuevo Paciente'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: nombreController,
+            decoration: const InputDecoration(
+              labelText: 'Nombre Completo',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: emailController,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: telefonoController,
+            decoration: const InputDecoration(
+              labelText: 'Teléfono',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            if (nombreController.text.isNotEmpty &&
+                emailController.text.isNotEmpty) {
+              try {
+                await FirebaseFirestore.instance.collection('pacientes').add({
+                  'nombre': nombreController.text,
+                  'email': emailController.text,
+                  'telefono': telefonoController.text,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Paciente registrado exitosamente'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
+    ),
+  );
+}
+
+// 📊 VER REPORTES
+void _showReportesDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Reportes'),
+      content: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('citas').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const CircularProgressIndicator();
+          }
+
+          final citas = snapshot.data!.docs;
+          final total = citas.length;
+          final pendientes = citas
+              .where((c) => (c.data() as Map)['estado'] == 'Pendiente')
+              .length;
+          final completadas = citas
+              .where((c) => (c.data() as Map)['estado'] == 'Completada')
+              .length;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildReporteItem('Total de Citas', total.toString(), Icons.calendar_month),
+              const SizedBox(height: 12),
+              _buildReporteItem('Pendientes', pendientes.toString(), Icons.pending),
+              const SizedBox(height: 12),
+              _buildReporteItem('Completadas', completadas.toString(), Icons.check_circle),
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cerrar'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            // Aquí podrías exportar a PDF o generar un reporte completo
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Generando reporte...'),
+              ),
+            );
+          },
+          child: const Text('Descargar PDF'),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildReporteItem(String label, String value, IconData icon) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.grey[100],
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: const Color(0xFF6c5ce7), size: 32),
+        const SizedBox(width: 16),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1a1d2e),
+              ),
+            ),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }

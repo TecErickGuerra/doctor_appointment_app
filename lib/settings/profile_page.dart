@@ -28,7 +28,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (user == null) return;
 
     final userDoc = await FirebaseFirestore.instance
-        .collection('usuarios') // 👈 asegúrate que coincide con tu colección real
+        .collection('users') // 👈 asegúrate que coincide con tu colección real
         .doc(user!.uid)
         .get();
 
@@ -46,7 +46,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> saveUserInfo() async {
     if (user == null) return;
 
-    await FirebaseFirestore.instance.collection('usuarios').doc(user!.uid).set({
+    await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
       'nombre': nameController.text,
       'telefono': phoneController.text,
       'padecimientos': conditionsController.text,
