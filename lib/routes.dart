@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
-import 'profile_page.dart';
-import 'login_page.dart';
+import 'homepage/home_page.dart';
+import 'settings/profile_page.dart';
+import 'homepage/login_page.dart';
+import 'screens/dashboard/dashboard_screen.dart';
 
 class Routes {
   static const login = '/';
   static const home = '/home';
   static const profile = '/profile';
+  static const dashboard = '/dashboard';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -15,7 +17,9 @@ class Routes {
       case home:
         return MaterialPageRoute(builder: (_) => const HomePage());
       case profile:
-        return MaterialPageRoute(builder: (_) => const ProfilePage());
+        return MaterialPageRoute(builder: (_) => ProfilePage());
+      case dashboard:
+        return MaterialPageRoute(builder: (_) => DashboardScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
