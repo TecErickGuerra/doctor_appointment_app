@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -15,8 +16,10 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _isLoading = false;
+  String _selectedRole = 'Paciente'; // 👈 NUEVO: Rol por defecto
 
   // ======================================================
   // AUTH FUNCTIONS
@@ -27,15 +30,16 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      final user = await _auth.signInWithEmailAndPassword(
+      final userCredential = await _auth.signInWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
 
-      _showCupertinoAlert("Bienvenido ${user.user!.email}");
+      _showCupertinoAlert("Bienvenido ${userCredential.user!.email}");
 
+      // 👇 NUEVO: Navegar según el rol del usuario
       Future.delayed(const Duration(milliseconds: 600), () {
-        Navigator.pushReplacementNamed(context, Routes.home);
+        _navigateByRole();
       });
     } on FirebaseAuthException catch (e) {
       String msg = switch (e.code) {
@@ -44,9 +48,8 @@ class _LoginPageState extends State<LoginPage> {
         _ => e.message ?? 'Error desconocido',
       };
       _showCupertinoAlert(msg);
+      setState(() => _isLoading = false);
     }
-
-    setState(() => _isLoading = false);
   }
 
   Future<void> _register() async {
@@ -60,10 +63,14 @@ class _LoginPageState extends State<LoginPage> {
         password: passwordController.text.trim(),
       );
 
+      // 👇 NUEVO: Guardar el rol en Firestore
+      await _saveUserRole(userCredential.user!);
+
       _showCupertinoAlert("Cuenta creada: ${userCredential.user!.email}");
 
+      // 👇 NUEVO: Navegar según el rol seleccionado
       Future.delayed(const Duration(milliseconds: 600), () {
-        Navigator.pushReplacementNamed(context, Routes.home);
+        _navigateByRole();
       });
     } on FirebaseAuthException catch (e) {
       String message = switch (e.code) {
@@ -72,9 +79,8 @@ class _LoginPageState extends State<LoginPage> {
         _ => e.message ?? 'Error desconocido',
       };
       _showCupertinoAlert(message);
+      setState(() => _isLoading = false);
     }
-
-    setState(() => _isLoading = false);
   }
 
   Future<void> _resetPassword() async {
@@ -93,6 +99,49 @@ class _LoginPageState extends State<LoginPage> {
       );
     } on FirebaseAuthException catch (e) {
       _showCupertinoAlert(e.message ?? "Error desconocido");
+    }
+  }
+
+  // ======================================================
+  // 👇 NUEVAS FUNCIONES: ROL Y NAVEGACIÓN
+  // ======================================================
+  
+  /// Guarda el rol del usuario en Firestore
+  Future<void> _saveUserRole(User user) async {
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'email': user.email,
+        'rol': _selectedRole,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error al guardar rol: $e');
+    }
+  }
+
+  /// Navega a la pantalla correspondiente según el rol del usuario
+  Future<void> _navigateByRole() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final rol = doc.data()?['rol'] ?? 'Paciente';
+
+      if (!mounted) return;
+
+      if (rol == 'Médico') {
+        Navigator.pushReplacementNamed(context, Routes.dashboard);
+      } else {
+        Navigator.pushReplacementNamed(context, Routes.home);
+      }
+    } catch (e) {
+      print('Error al obtener rol: $e');
+      // Si hay error, ir a home por defecto
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, Routes.home);
+      }
     }
   }
 
@@ -208,6 +257,11 @@ class _LoginPageState extends State<LoginPage> {
                         icon: CupertinoIcons.lock_fill,
                       ),
 
+                      const SizedBox(height: 16),
+
+                      // 👇 NUEVO: DROPDOWN DE ROL
+                      _buildRoleSelector(),
+
                       const SizedBox(height: 30),
 
                       // BOTÓN LOGIN
@@ -284,6 +338,57 @@ class _LoginPageState extends State<LoginPage> {
         color: const Color(0xFFF8FAFB),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade300),
+      ),
+    );
+  }
+
+  // ======================================================
+  // 👇 NUEVO: WIDGET SELECTOR DE ROL
+  // ======================================================
+  Widget _buildRoleSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          Icon(
+            CupertinoIcons.person_2_fill,
+            color: Colors.teal.shade400,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedRole,
+                isExpanded: true,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 16,
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Paciente',
+                    child: Text('Paciente'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Médico',
+                    child: Text('Médico'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedRole = value!;
+                  });
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
