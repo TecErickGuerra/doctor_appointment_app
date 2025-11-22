@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../routes.dart';
+import '../routes.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -132,15 +132,15 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (rol == 'Médico') {
-        Navigator.pushReplacementNamed(context, Routes.dashboard);
+        Navigator.pushReplacementNamed(context, AppRoutes.dashboard);
       } else {
-        Navigator.pushReplacementNamed(context, Routes.home);
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
       }
     } catch (e) {
       print('Error al obtener rol: $e');
       // Si hay error, ir a home por defecto
       if (mounted) {
-        Navigator.pushReplacementNamed(context, Routes.home);
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
       }
     }
   }

@@ -172,65 +172,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ==================== STATS CARDS (DINÁMICAS) ====================
-  Widget _buildStatsCards(
-    BuildContext context, {
-    required int citasHoy,
-    required int totalPacientes,
-    required int totalCitas,
-    required int citasCompletadas,
-  }) {
-    return GridView.count(
-      crossAxisCount: MediaQuery.of(context).size.width > 768 ? 4 : 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
-      children: [
-        // 1️⃣ INDICADOR: Total de Citas
-        _buildStatCard(
-          title: 'Total Citas',
-          value: totalCitas.toString(),
-          icon: Icons.calendar_month,
-          color: const Color(0xFF6c5ce7),
-          trend: '+${totalCitas}',
-        ),
-        // 2️⃣ INDICADOR: Total de Pacientes
-        _buildStatCard(
-          title: 'Pacientes',
-          value: totalPacientes.toString(),
-          icon: Icons.people,
-          color: const Color(0xFF00D4FF),
-          trend: '+${totalPacientes}',
-        ),
-        // 3️⃣ INDICADOR: Citas Pendientes
-        _buildStatCard(
-          title: 'Completadas',
-          value: citasCompletadas.toString(),
-          icon: Icons.check_circle,
-          color: const Color(0xFF4ECB71),
-          trend: '+${citasCompletadas}',
-        ),
-        // 4️⃣ INDICADOR EXTRA: Citas de Hoy
-        _buildStatCard(
-          title: 'Citas Hoy',
-          value: citasHoy.toString(),
-          icon: Icons.today,
-          color: const Color(0xFFFF6B6B),
-          trend: 'Hoy',
-        ),
-      ],
-    );
-  }
+  // En _buildStatsCards, después del cuarto card, agrega:
+Widget _buildStatsCards(
+  BuildContext context, {
+  required int citasHoy,
+  required int totalPacientes,
+  required int totalCitas,
+  required int citasCompletadas,
+}) {
+  return GridView.count(
+    crossAxisCount: MediaQuery.of(context).size.width > 768 ? 4 : 2,
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    crossAxisSpacing: 16,
+    mainAxisSpacing: 16,
+    childAspectRatio: 1.5,
+    children: [
+      // ... tus 4 cards existentes ...
+      
+      // 👈 NUEVA CARD PARA ESTADÍSTICAS (opcional)
+      _buildStatCard(
+        title: 'Ver Gráficas',
+        value: '📊',
+        icon: Icons.insights,
+        color: const Color(0xFF9C27B0), // Color morado
+        trend: 'Analizar',
+        onTap: () {
+          Navigator.pushNamed(context, '/graphics');
+        },
+      ),
+    ],
+  );
+}
 
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    required String trend,
-  }) {
-    return Container(
+// Actualiza _buildStatCard para aceptar onTap
+Widget _buildStatCard({
+  required String title,
+  required String value,
+  required IconData icon,
+  required Color color,
+  required String trend,
+  VoidCallback? onTap, // 👈 Parámetro opcional
+}) {
+  return InkWell(
+    onTap: onTap, // 👈 Si se proporciona onTap, hace clickeable
+    child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -297,8 +283,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   // ==================== APPOINTMENTS SECTION (DINÁMICA) ====================
   Widget _buildAppointmentsSection(
@@ -420,6 +407,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ==================== QUICK ACTIONS ====================
+// ==================== QUICK ACTIONS ====================
 Widget _buildQuickActions(BuildContext context) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,7 +429,7 @@ Widget _buildQuickActions(BuildContext context) {
               label: 'Nueva Cita',
               color: const Color(0xFF6c5ce7),
               onTap: () {
-                _showNuevaCitaDialog(context);  // 👈 NUEVA FUNCIONALIDAD
+                _showNuevaCitaDialog(context);
               },
             ),
           ),
@@ -452,18 +440,19 @@ Widget _buildQuickActions(BuildContext context) {
               label: 'Nuevo Paciente',
               color: const Color(0xFF00D4FF),
               onTap: () {
-                _showNuevoPacienteDialog(context);  // 👈 NUEVA FUNCIONALIDAD
+                _showNuevoPacienteDialog(context);
               },
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: _buildQuickActionButton(
-              icon: Icons.receipt_long,
-              label: 'Ver Reportes',
-              color: const Color(0xFF4ECB71),
+              icon: Icons.bar_chart, // 👈 NUEVO ICONO
+              label: 'Estadísticas', // 👈 NUEVO TEXTO
+              color: const Color(0xFFFFA726), // 👈 NUEVO COLOR (naranja)
               onTap: () {
-                _showReportesDialog(context);  // 👈 NUEVA FUNCIONALIDAD
+                // 👈 NUEVA NAVEGACIÓN
+                Navigator.pushNamed(context, '/graphics');
               },
             ),
           ),

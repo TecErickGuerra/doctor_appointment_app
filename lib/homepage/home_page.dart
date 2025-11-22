@@ -176,7 +176,7 @@ class _HomePageState extends State<HomePage> {
                               icon: Icons.dashboard,
                               color: const Color(0xFF00A8A8),
                               onTap: () {
-                                Navigator.pushNamed(context, Routes.dashboard);
+                                Navigator.pushNamed(context, AppRoutes.dashboard);
                               },
                             ),
                           ),
@@ -457,7 +457,7 @@ class _HomePageState extends State<HomePage> {
           _buildSettingsOption(
             icon: Icons.person,
             title: 'Perfil',
-            onTap: () => Navigator.pushNamed(context, Routes.profile),
+            onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
           ),
           _buildSettingsOption(
             icon: Icons.privacy_tip,
@@ -482,7 +482,7 @@ class _HomePageState extends State<HomePage> {
             color: Colors.red,
             onTap: () async {
               await _auth.signOut();
-              Navigator.pushReplacementNamed(context, Routes.login);
+              Navigator.pushReplacementNamed(context, AppRoutes.login);
             },
           ),
         ],
