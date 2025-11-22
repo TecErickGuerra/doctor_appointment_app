@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';  // 👈 AGREGAR
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../routes.dart';
 import '../settings/privacy_screen.dart';
 import '../settings/about_screen.dart';
@@ -8,7 +8,9 @@ import 'appointments_page.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int initialIndex; // 👈 AGREGADO
+  
+  const HomePage({super.key, this.initialIndex = 0}); // 👈 MODIFICADO
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -26,6 +28,13 @@ class _HomePageState extends State<HomePage> {
     {"id": "4", "name": "Dra. Laura Sánchez", "msg": "Confirma tu asistencia", "time": "10:23 AM"},
     {"id": "5", "name": "Dr. Roberto Torres", "msg": "Seguimiento", "time": "10:24 AM"},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex; // 👈 AGREGADO
+    print('HomePage inicializado con índice: $_selectedIndex'); //SE AGREGA LINEA AQUI
+  }
 
   void _onItemTapped(int index) => setState(() => _selectedIndex = index);
 

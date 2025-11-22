@@ -3,8 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'routes.dart';
-import 'package:doctor_appointment_app/homepage/home_page.dart';      // 👈 AGREGAR
-import 'package:doctor_appointment_app/homepage/login_page.dart';     // 👈 AGREGAR
+import 'package:doctor_appointment_app/homepage/home_page.dart';
+import 'package:doctor_appointment_app/homepage/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,15 +24,11 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       onGenerateRoute: AppRoutes.generateRoute,
-      // 👇 Usar initialRoute en lugar de home
-      initialRoute: AppRoutes.login,
-      // O crear una ruta de verificación
-      home: const AuthWrapper(),
+      home: const AuthWrapper(), // 👈 Solo usar home, NO initialRoute
     );
   }
 }
 
-// 👇 AGREGAR ESTE WIDGET
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
 
@@ -48,7 +44,8 @@ class AuthWrapper extends StatelessWidget {
         }
         
         if (snapshot.hasData) {
-          return const HomePage();
+          // 👇 Sin const, con initialIndex explícito
+          return HomePage(initialIndex: 0);
         } else {
           return const LoginPage();
         }

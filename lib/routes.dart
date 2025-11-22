@@ -19,9 +19,16 @@ class AppRoutes {
   static const String privacy = '/privacy';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
+    print('🔍 Generando ruta: ${settings.name} con argumentos: ${settings.arguments}'); // 👈 AGREGAR ESTE DEBUG
+    
     switch (settings.name) {
       case home:
-        return MaterialPageRoute(builder: (_) => const HomePage());
+      case '/': // 👈 AGREGAR ESTE CASO TAMBIÉN
+        final args = settings.arguments as int?;
+        print('🔍 Navegando a home con arguments: $args');
+        return MaterialPageRoute(
+          builder: (_) => HomePage(initialIndex: args ?? 0),
+        );
       case login:
         return MaterialPageRoute(builder: (_) => const LoginPage());
       case appointments:

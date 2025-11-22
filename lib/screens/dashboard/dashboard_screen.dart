@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../routes.dart';
+import '../../homepage/home_page.dart'; // 👈 AGREGAR ESTE IMPORT
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -13,136 +14,145 @@ class DashboardScreen extends StatelessWidget {
         title: const Text('Dashboard Médico'),
         backgroundColor: const Color(0xFF00A8A8),
       ),
-      // 👇 AGREGAR DRAWER
       drawer: Drawer(
-  child: ListView(
-    padding: EdgeInsets.zero,
-    children: [
-      DrawerHeader(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF00A8A8), Color(0xFF005F5F)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.end,
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            const CircleAvatar(
-              radius: 35,
-              backgroundColor: Colors.white,
-              child: Icon(
-                Icons.medical_services,
-                size: 40,
-                color: Color(0xFF00A8A8),
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF00A8A8), Color(0xFF005F5F)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.medical_services,
+                      size: 40,
+                      color: Color(0xFF00A8A8),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? 'Doctor',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    'Médico',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              FirebaseAuth.instance.currentUser?.email?.split('@')[0] ?? 'Doctor',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            ListTile(
+              leading: const Icon(Icons.dashboard, color: Color(0xFF00A8A8)),
+              title: const Text('Dashboard'),
+              selected: true,
+              selectedTileColor: Colors.teal.shade50,
+              onTap: () {
+                Navigator.pop(context); // Cerrar drawer
+              },
             ),
-            const Text(
-              'Médico',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-              ),
+            ListTile(
+              leading: const Icon(Icons.home, color: Colors.blue),
+              title: const Text('Inicio'),
+              onTap: () {
+                print('🚀 Presionado botón Inicio, navegando con índice 0');
+                Navigator.pop(context);
+                // 👇 USAR Navigator.push directamente
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(initialIndex: 0),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart, color: Colors.purple),
+              title: const Text('Gráficas'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.graphics);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_today, color: Colors.orange),
+              title: const Text('Mis Citas'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.appointments);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.message, color: Colors.green),
+              title: const Text('Mensajes'),
+              onTap: () {
+                print('🚀 Presionado botón Mensajes, navegando con índice 2');
+                Navigator.pop(context);
+                // 👇 USAR Navigator.push directamente
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomePage(initialIndex: 2),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.grey),
+              title: const Text('Ajustes'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.profile);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.privacy_tip, color: Colors.blueGrey),
+              title: const Text('Privacidad'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.privacy);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info, color: Colors.lightBlue),
+              title: const Text('Acerca de'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.about);
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Cerrar Sesión'),
+              onTap: () async {
+                Navigator.pop(context);
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.pushReplacementNamed(context, AppRoutes.login);
+                }
+              },
             ),
           ],
         ),
       ),
-      ListTile(
-        leading: const Icon(Icons.dashboard, color: Color(0xFF00A8A8)),
-        title: const Text('Dashboard'),
-        selected: true,
-        selectedTileColor: Colors.teal.shade50,
-        onTap: () {
-          Navigator.pop(context); // Cerrar drawer
-        },
-      ),
-      ListTile(
-        leading: const Icon(Icons.home, color: Colors.blue),
-        title: const Text('Inicio'),
-        onTap: () {
-          Navigator.pop(context); // Cerrar drawer primero
-          // 👇 USAR pushNamed en lugar de pushReplacementNamed
-          Navigator.pushNamed(context, AppRoutes.home);
-        },
-      ),
-      ListTile(
-        leading: const Icon(Icons.bar_chart, color: Colors.purple),
-        title: const Text('Gráficas'),
-        onTap: () {
-          Navigator.pop(context);
-          Navigator.pushNamed(context, AppRoutes.graphics);
-        },
-      ),
-      ListTile(
-        leading: const Icon(Icons.calendar_today, color: Colors.orange),
-        title: const Text('Mis Citas'),
-        onTap: () {
-          Navigator.pop(context);
-          Navigator.pushNamed(context, AppRoutes.appointments);
-        },
-      ),
-      ListTile(
-        leading: const Icon(Icons.message, color: Colors.green),
-        title: const Text('Mensajes'),
-        onTap: () {
-          Navigator.pop(context);
-          // Para ir a mensajes en HomePage, puedes crear una ruta específica
-          // o pasar un parámetro
-          Navigator.pushNamed(context, AppRoutes.home);
-        },
-      ),
-      const Divider(),
-      ListTile(
-        leading: const Icon(Icons.settings, color: Colors.grey),
-        title: const Text('Ajustes'),
-        onTap: () {
-          Navigator.pop(context);
-          Navigator.pushNamed(context, AppRoutes.profile);
-        },
-      ),
-      ListTile(
-        leading: const Icon(Icons.privacy_tip, color: Colors.blueGrey),
-        title: const Text('Privacidad'),
-        onTap: () {
-          Navigator.pop(context);
-          Navigator.pushNamed(context, AppRoutes.privacy);
-        },
-      ),
-      ListTile(
-        leading: const Icon(Icons.info, color: Colors.lightBlue),
-        title: const Text('Acerca de'),
-        onTap: () {
-          Navigator.pop(context);
-          Navigator.pushNamed(context, AppRoutes.about);
-        },
-      ),
-      const Divider(),
-      ListTile(
-        leading: const Icon(Icons.logout, color: Colors.red),
-        title: const Text('Cerrar Sesión'),
-        onTap: () async {
-          Navigator.pop(context); // Cerrar drawer
-          await FirebaseAuth.instance.signOut();
-          if (context.mounted) {
-            // 👇 AQUÍ SÍ usar pushReplacementNamed porque queremos limpiar la pila
-            Navigator.pushReplacementNamed(context, AppRoutes.login);
-          }
-        },
-      ),
-    ],
-  ),
-),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('citas')
