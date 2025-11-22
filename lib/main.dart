@@ -24,25 +24,35 @@ class MyApp extends StatelessWidget {
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       onGenerateRoute: AppRoutes.generateRoute,
-      // Verificar si hay usuario autenticado
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          
-          if (snapshot.hasData) {
-            // Usuario autenticado -> ir a HomePage
-            return const HomePage();
-          } else {
-            // No hay usuario -> ir a LoginPage
-            return const LoginPage();
-          }
-        },
-      ),
+      // 👇 Usar initialRoute en lugar de home
+      initialRoute: AppRoutes.login,
+      // O crear una ruta de verificación
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+// 👇 AGREGAR ESTE WIDGET
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (snapshot.hasData) {
+          return const HomePage();
+        } else {
+          return const LoginPage();
+        }
+      },
     );
   }
 }
